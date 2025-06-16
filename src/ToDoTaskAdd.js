@@ -1,72 +1,118 @@
-import React from 'react';
-import { useNavigate } from 'react-router-dom';
+import React, { useState } from 'react';
+import { connect } from 'react-redux';
+import { useNavigate, NavLink } from 'react-router-dom';
+import { pcAdd } from './actions';
 
-class ToDoTaskAddInner extends React.Component {
-  constructor(props) {
-    super(props);
-
-    this.state = {
-      name: '',
-	  description: ''
-    };
-
-    this.onNameChange = this.onNameChange.bind(this);
-    this.onDescriptionChange = this.onDescriptionChange.bind(this);
-	this.onAddFormSubmit = this.onAddFormSubmit.bind(this);
-  }
-	
-  onNameChange(e) {
-    e.preventDefault();
-
-    this.setState({
-      name: e.target.value 
-    });
-  }
-  
-  onDescriptionChange(e) {
-    e.preventDefault();
-
-    this.setState({
-      description: e.target.value 
-    });
-  }
-	onAddFormSubmit(e) {
-		e.preventDefault();
-
-	fetch('task', {
-		method: 'POST',
-	body: JSON.stringify({
-		name: this.state.name,
-		description: this.state.description
-    }),
-	headers:  {
-		'Content-Type':'application/json'
-	}
-  })
-  .then((res) => {
-   return res.json();
-  })
-  .then((data) => {
-	this.props.onTaskAdd(data);
-	this.props.history('/');
+function ToDoTaskAdd({ dispatch }) {
+  const [form, setForm] = useState({
+    cpu: '', gpu: '', cooling: '', ports: '', ram: '', disks: ''
   });
-}
+  const navigate = useNavigate();
 
-  render() {
-    return (
-      <form onSubmit={this.onAddFormSubmit}>
-	  <input type="text" value={this.state.name} onChange={this.onNameChange} placeholder="Name" />
-	  <input type="text" value={this.state.description} onChange={this.onDescriptionChange} placeholder="Description" />
-	  <input type="submit" value="Add"/>
-	  </form>
-    );
-  }
-}
+  const handleChange = e => {
+    const { name, value } = e.target;
+    setForm(prev => ({ ...prev, [name]: value }));
+  };
 
-const ToDoTaskAdd = (props) => {
+  const handleSubmit = e => {
+    e.preventDefault();
+    fetch('/task', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(form)
+    })
+      .then(res => res.json())
+      .then(data => {
+        // MongoDriver сам допишет data._id в объект task, 
+        // поэтому здесь переупакуем в наш shape:
+        const newPc = {
+          id:      data._id,
+          cpu:     data.cpu,
+          gpu:     data.gpu,
+          cooling: data.cooling,
+          ports:   data.ports,
+          ram:     data.ram,
+          disks:   data.disks
+        };
+        dispatch(pcAdd(newPc));
+        navigate('/');
+      })
+      .catch(err => console.error('Ошибка при добавлении:', err));
+  };
+
   return (
-    <ToDoTaskAddInner {...props} history={useNavigate()} />
+    <div className="container">
+      <header className="list-header">
+        <h1>Добавить новую сборку</h1>
+        <NavLink to="/" className="btn btn-outline-secondary">
+          Назад
+        </NavLink>
+      </header>
+      <form onSubmit={handleSubmit} className="form">
+        <div className="form-group">
+          <label>Процессор</label>
+          <input
+            name="cpu"
+            value={form.cpu}
+            onChange={handleChange}
+            required
+          />
+        </div>
+        <div className="form-group">
+          <label>Видеокарта</label>
+          <input
+            name="gpu"
+            value={form.gpu}
+            onChange={handleChange}
+            required
+          />
+        </div>
+        <div className="form-group">
+          <label>Охлаждение</label>
+          <input
+            name="cooling"
+            value={form.cooling}
+            onChange={handleChange}
+            required
+          />
+        </div>
+        <div className="form-group">
+          <label>Порты</label>
+          <input
+            name="ports"
+            value={form.ports}
+            onChange={handleChange}
+            required
+          />
+        </div>
+        <div className="form-group">
+          <label>ОЗУ (ГБ)</label>
+          <input
+            type="number"
+            name="ram"
+            value={form.ram}
+            onChange={handleChange}
+            required
+            min="1"
+          />
+        </div>
+        <div className="form-group">
+          <label>Накопители (ГБ)</label>
+          <input
+            type="number"
+            name="disks"
+            value={form.disks}
+            onChange={handleChange}
+            required
+            min="1"
+          />
+        </div>
+        <button type="submit" className="btn btn-submit">
+          Сохранить
+        </button>
+      </form>
+    </div>
   );
 }
 
-export default ToDoTaskAdd;
+export default connect()(ToDoTaskAdd);

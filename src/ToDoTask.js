@@ -1,68 +1,118 @@
-import React from 'react';
+import React, { useState } from 'react';
+import { connect } from 'react-redux';
+import { pcDelete, pcUpdate } from './actions';
 
-class ToDoTask extends React.Component {
-  constructor(props) {
-    super(props);
+function ToDoTask({ id, cpu, gpu, cooling, ports, ram, disks, dispatch }) {
+  const [editing, setEditing] = useState(false);
+  const [editCpu, setEditCpu] = useState(cpu);
+  const [editGpu, setEditGpu] = useState(gpu);
 
-    this.state = {
-      done: this.props.task.done
-    };
+  // Удаление
+  const handleDelete = () => {
+    if (!window.confirm('Удалить эту сборку?')) return;
+    fetch(`/task/${id}`, { method: 'DELETE' })
+      .then(res => {
+        if (res.ok) dispatch(pcDelete(id));
+        else console.error('Ошибка удаления:', res.statusText);
+      })
+      .catch(err => console.error('Ошибка сети при удалении:', err));
+  };
 
-    this.onStatusClick = this.onStatusClick.bind(this);
-    this.onDeleteClick = this.onDeleteClick.bind(this);
-  }
+  // Сохранить правки
+  const handleSave = () => {
+    fetch(`/task/${id}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ cpu: editCpu, gpu: editGpu })
+    })
+      .then(res => {
+        if (!res.ok) throw new Error(res.statusText);
+        // обновляем локально
+        dispatch(pcUpdate({
+          id,
+          cpu:     editCpu,
+          gpu:     editGpu,
+          cooling,
+          ports,
+          ram,
+          disks
+        }));
+        setEditing(false);
+      })
+      .catch(err => console.error('Ошибка обновления:', err));
+  };
 
-  onStatusClick(e) {
-    e.preventDefault();
-	
-    fetch(`task/${this.props.task._id}`,{
-		method:'PATCH',
-		body: JSON.stringify({
-		done: !this.state.done
-    }),
-	headers:  {
-		'Content-Type':'application/json'
-	}
-	}).then((res)=> {
-      if (res.status === 200) {
-        console.log('Updated');
-		    this.setState({
-			done: !this.state.done
-		});
-		
-      } 
-	  else {
-        console.log('Not updated');
-      }
-    });
-  }
-
-  onDeleteClick(e) {
-    e.preventDefault();
-
-    fetch(`task/${this.props.task._id}`,{
-		method:'DELETE'
-	}).then((res)=> {
-      if (res.status === 200) {
-        console.log('Deleted');
-		this.props.onTaskDelete(this.props.task._id);
-      } 
-	  else {
-        console.log('Not deleted');
-      }
-    });
-  }
-
-  render() {
+  // Разметка в режиме редактирования
+  if (editing) {
     return (
-      <li> 
-      <span>{this.props.task.name}-</span>
-	  <span><i>  {this.props.task.description} </i></span>
-	  <span onClick={this.onStatusClick}><b>{this.state.done ? 'Done' : 'Todo'} </b></span>
-	  <button onClick={this.onDeleteClick}>Delete</button>
-	  </li>
+      <div className="card">
+        <div className="card-body">
+          <div className="form-group">
+            <label>Процессор</label>
+            <input
+              type="text"
+              value={editCpu}
+              onChange={e => setEditCpu(e.target.value)}
+            />
+          </div>
+          <div className="form-group">
+            <label>Видеокарта</label>
+            <input
+              type="text"
+              value={editGpu}
+              onChange={e => setEditGpu(e.target.value)}
+            />
+          </div>
+          <button
+            className="btn btn-submit"
+            onClick={handleSave}
+          >
+            Сохранить
+          </button>
+          <button
+            className="btn btn-outline-secondary"
+            style={{ marginLeft: 8 }}
+            onClick={() => setEditing(false)}
+          >
+            Отмена
+          </button>
+        </div>
+      </div>
     );
   }
+
+  // Обычная карточка
+  return (
+    <div className="card">
+      <div className="card-header">
+        <h2>{cpu}</h2>
+        <h4>{gpu}</h4>
+      </div>
+      <div className="card-body">
+        <ul className="card-list">
+          <li><strong>Охлаждение:</strong> {cooling}</li>
+          <li><strong>Порты:</strong> {ports}</li>
+          <li><strong>ОЗУ:</strong> {ram} ГБ</li>
+          <li><strong>Накопители:</strong> {disks} ГБ</li>
+        </ul>
+        <div>
+          <button
+            className="btn btn-outline-secondary"
+            onClick={() => setEditing(true)}
+          >
+            Редактировать
+          </button>
+          <button
+            className="btn btn-danger"
+            style={{ marginLeft: 8 }}
+            onClick={handleDelete}
+          >
+            Удалить
+          </button>
+        </div>
+      </div>
+    </div>
+  );
 }
 
-export default ToDoTask;
+export default connect()(ToDoTask);

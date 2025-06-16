@@ -1,50 +1,38 @@
-import React from 'react';
-import {BrowserRouter as Router, Routes ,Route} from 'react-router-dom';
-import ToDoList from './ToDoList';
-import ToDoTaskAdd from './ToDoTaskAdd';
+import React, { useEffect } from 'react';
+import { connect } from 'react-redux';
+import { pcAddAll } from './actions';
+import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
+import ToDoList     from './ToDoList';
+import ToDoTaskAdd  from './ToDoTaskAdd';
 
-class App extends React.Component {
-	constructor(props) {
-		super(props);
+function App({ dispatch }) {
+  useEffect(() => {
+    fetch('/task')
+      .then(res => res.json())
+      .then(data => {
+        // из Mongo получаем поле _id, превратим его в id
+        const pcs = data.map(d => ({
+          id: d._id,
+          cpu:     d.cpu,
+          gpu:     d.gpu,
+          cooling: d.cooling,
+          ports:   d.ports,
+          ram:     d.ram,
+          disks:   d.disks
+        }));
+        dispatch(pcAddAll(pcs));
+      })
+      .catch(err => console.error('Ошибка загрузки:', err));
+  }, [dispatch]);
 
-		this.state = {
-			tasks: []
-		}
-		this.onTaskAdd = this.onTaskAdd.bind(this);
-		this.onTaskDelete = this.onTaskDelete.bind(this);
-	}
-	
-	onTaskAdd(task) {
-		this.setState({
-		  tasks: [...this.state.tasks, task]
-		});
-	  }
-	  
-	 onTaskDelete(_id) {
-		this.setState({
-			tasks: this.state.tasks.filter((task) => task._id !== _id)
-			});
-		}
-	
-
-  componentDidMount() {
-    fetch('tasks')
-      .then((res) => res.json())
-      .then((data) => {
-        this.setState({ tasks: data });
-      });
-  }
-  render() {
-    return (
-      <div className="App">
-	  <Router>
-		<Routes>
-			<Route path="/" element={<ToDoList  tasks={this.state.tasks} onTaskDelete={this.onTaskDelete} />} />
-			<Route path="/add" element={<ToDoTaskAdd onTaskAdd={this.onTaskAdd}/>} />
-		</Routes>
-	  </Router>
-      </div>
-    );
-  }
+  return (
+    <Router>
+      <Routes>
+        <Route path="/" element={<ToDoList />} />
+        <Route path="/add" element={<ToDoTaskAdd />} />
+      </Routes>
+    </Router>
+  );
 }
-export default App;
+
+export default connect()(App);
